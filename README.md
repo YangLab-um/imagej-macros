@@ -10,6 +10,9 @@ Repository of ImageJ scripts used in image processing by the Yang Lab at the Uni
 - `combine_fret_videos.ijm`: Combine all videos belonging to the same row of a temperature experiment. Save the result as a tiff.
 - `make_montage.ijm`: Create a montage of the vertical average of a tube over time (kymograph).
 - `combine_tube_montages.ijm`: Combine all montages belonging to the same row of a temperature experiment. Save the result as a tiff.
+## Wave
+- `stitch_and_stack.ijm`: Stitch horizontally arranged FOVs and make time-stack images. Save the result as tiffs.
+- `make_kymograph.ijm`: Create 1D kymographs along tubes. Locations of tubes must be specified manually. Save the result as tiffs.
 
 # Installation
 The scripts can be run using two methods:
