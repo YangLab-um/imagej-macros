@@ -10,6 +10,9 @@ Repository of ImageJ scripts used in image processing by the Yang Lab at the Uni
 - `combine_fret_videos.ijm`: Combine all videos belonging to the same row of a temperature experiment. Save the result as a tiff.
 - `make_montage.ijm`: Create a montage of the vertical average of a tube over time (kymograph).
 - `combine_tube_montages.ijm`: Combine all montages belonging to the same row of a temperature experiment. Save the result as a tiff.
+## Wave
+- `stitch_and_stack.ijm`: Stitch horizontally arranged FOVs and make time-stack images. Save the result as tiffs.
+- `make_kymograph.ijm`: Create 1D kymographs along tubes. Locations of tubes must be specified manually. Save the result as tiffs.
 
 ## GlassTubeAlignment
 - `GlassTubeAlignment.py`: Perform multi-channel image alignment (multiStackReg) across all positions in a dataset where sample tubes moved during the experiment. The alignment process uses transformation information generated from the first channel in the provided channel list and applies it to all other channels. Users can specify input and output paths, a list of channels, and the range of frames to process. The script is implemented in Jython 2.7.2
