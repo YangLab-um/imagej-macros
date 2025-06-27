@@ -18,11 +18,14 @@ Dialog.addMessage("Select run mode  --------------------------------------------
 
 Dialog.addRadioButtonGroup("", newArray(PRESTITCH_MSG, "Stitch and Stack"), 2, 1, "Stitch and Stack");
 
+Dialog.addMessage("Select stitch direction  ------------------------------------------------------------------------------------------------------------------------------");
+Dialog.addRadioButtonGroup("", newArray("Left", "Right"), 2, 1, "Left");
+
 Dialog.addMessage("Specify Regex Patterns for Raw Image File Names  --------------------------------------------------------------------------------");
 Dialog.addString("(Each Directory) Pattern after 1-base Position Index", "-Pos_.*", 36);
 Dialog.addString("(Each Image File) Pattern for BF Channel", ".*-BF_.*", 36);
-Dialog.addString("(Each Image File) Comma-separated Patterns for Channel Ids", ".*-BF_.* , .*-CFP_.* , .*-FRET_.*", 36);
-Dialog.addString("(Each Image File) Channel Ids for Outputs", "BF , CFP , FRET", 36);
+Dialog.addString("(Each Image File) Comma-separated Patterns for Channel Ids", ".*-BF_.* , .*-CFP_.* , .*-Custom_.* , .*-mCherry_.*", 36);
+Dialog.addString("(Each Image File) Channel Ids for Outputs", "BF , CFP , FRET , mScarlet", 36);
 
 Dialog.addMessage("Specify Numbers  ------------------------------------------------------------------------------------------------------------------------------");
 Dialog.addNumber("Number of Positions (Number of tile sets)", 0);
@@ -76,6 +79,13 @@ if (runMode.startsWith(PRESTITCH_MSG)) {
 	flagPreStitching = false;
 }
 
+stitchDirection = Dialog.getRadioButton();
+if (stitchDirection.startsWith("Left")) {
+	flagStitchDir = 0;
+} else {
+	flagStitchDir = 1;
+}
+
 flagSkipStitching = false;
 flagSkipStacking = false;
 
@@ -91,7 +101,7 @@ if (flagPreStitching) {
 	// stitch the first frame of bright field images
 
 	for (ip = 0; ip < nPos; ip++) {
-		posList = Array.filter(allDirs, "(" + d2s(ip + 1, 0) + pattern + ")");
+		posList = Array.filter(allDirs, "(^" + d2s(ip + 1, 0) + pattern + ")");
 		
 		gridNum = posList.length;
 	
@@ -114,9 +124,18 @@ if (flagPreStitching) {
 			File.copy(rawBase + posList[ig] + f[0], tempFile);
 		}
 		
-		run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Left & Down] grid_size_x=" + d2s(gridNum, 0) + " grid_size_y=1 tile_overlap=30 first_file_index_i=1 directory=" + rawBase + " file_names=.temp_grid_{i}.tif output_textfile_name=TileConfiguration.txt fusion_method=[Max. Intensity] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 compute_overlap display_fusion computation_parameters=[Save memory (but be slower)] image_output=[Fuse and display]");
-		// You might see some band in the stitched images which are artifacts. Adjust the parameters for stitching to get proper results
-		// Fusion method Max. Intensity may give better result than Linear Blending. In BF images, the centers of tiles tend to be brighter than the periphery, which is thought to be the reason for having stripes in the stitched image. Max. Intensity option can alleviate this problem.
+		if (posList.length > 1) {
+			// Use one of the following depending on the order of fov imaged
+			if (flagStitchDir == 0) {
+			    run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Left & Down] grid_size_x=" + d2s(gridNum, 0) + " grid_size_y=1 tile_overlap=30 first_file_index_i=1 directory=" + rawBase + " file_names=.temp_grid_{i}.tif output_textfile_name=TileConfiguration.txt fusion_method=[Max. Intensity] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 compute_overlap display_fusion computation_parameters=[Save memory (but be slower)] image_output=[Fuse and display]");
+			} else {
+				run("Grid/Collection stitching", "type=[Grid: row-by-row] order=[Right & Down                ] grid_size_x=" + d2s(gridNum, 0) + " grid_size_y=1 tile_overlap=30 first_file_index_i=1 directory=" + rawBase + " file_names=.temp_grid_{i}.tif output_textfile_name=TileConfiguration.txt fusion_method=[Max. Intensity] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 compute_overlap display_fusion computation_parameters=[Save memory (but be slower)] image_output=[Fuse and display]");
+			}
+			// You might see some band in the stitched images which are artifacts. Adjust the parameters for stitching to get proper results
+			// Fusion method Max. Intensity may give better result than Linear Blending. In BF images, the centers of tiles tend to be brighter than the periphery, which is thought to be the reason for having stripes in the stitched image. Max. Intensity option can alleviate this problem.
+		} else {
+			open(tempFile);
+		}
 		
 		rawScale = saveDir + "Pos" + d2s(ip + 1, 0) + "_BF";
 		saveAs("tiff", rawScale);
@@ -150,8 +169,10 @@ if (!flagSkipStitching) {
 	// Stitch entire data
 	// Requires prestitched data and tile configuration files
 	
+	// If stitching is not done well after prestitching, edit corresponding TileConfiguration.txt files manually
+	
 	for (ip = 0; ip < nPos; ip++) {
-		posList = Array.filter(allDirs, "(" + d2s(ip + 1, 0) + pattern + ")");
+		posList = Array.filter(allDirs, "(^" + d2s(ip + 1, 0) + pattern + ")");
 		
 		gridNum = posList.length;
 	
@@ -177,13 +198,17 @@ if (!flagSkipStitching) {
 					File.copy(rawBase + posList[ig] + f[ifs], tempFile);
 				}
 				
-				File.copy(saveDir + "TileConfiguration.txt", rawBase + "TileConfiguration.txt");
-				// Reference tile configuration file created during the prestitching process
-				
-				tempFiles = Array.concat(tempFiles, newArray(rawBase + "TileConfiguration.txt"));
-				
-				run("Grid/Collection stitching", "type=[Positions from file] order=[Defined by TileConfiguration] directory=" + rawBase + " layout_file=TileConfiguration.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 computation_parameters=[Save memory (but be slower)] image_output=[Fuse and display]");
-				// Use Linear Blending for non-BF images
+				if (posList.length > 1) {
+					File.copy(saveDir + "TileConfiguration.txt", rawBase + "TileConfiguration.txt");
+					// Reference tile configuration file created during the prestitching process
+					
+					tempFiles = Array.concat(tempFiles, newArray(rawBase + "TileConfiguration.txt"));
+					
+					run("Grid/Collection stitching", "type=[Positions from file] order=[Defined by TileConfiguration] directory=" + rawBase + " layout_file=TileConfiguration.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 computation_parameters=[Save memory (but be slower)] image_output=[Fuse and display]");
+					// fusion methods: [Linear Blending], [Max. Intensity]
+				} else {
+					open(tempFile);
+				}
 				
 				saveAs("tiff", stitchedDir + channelId[ic] + IJ.pad(ifs, 8));
 				close();
@@ -242,9 +267,13 @@ if (!flagSkipStacking) {
 			// division by zero will be mapped to NaN
 			
 			imageCalculator("Divide create 32-bit stack", ratio_numerator + ".tif", ratio_denominator + ".tif");
-			// Do we need 32-bit results?
 			
 			saveAs("tiff", saveDir + "Pos" + d2s(ip + 1, 0) + "_Ratio");
+			
+			while (nImages>0) { 
+          		selectImage(nImages); 
+          		close();
+      		} 
 		}
 	}
 	
